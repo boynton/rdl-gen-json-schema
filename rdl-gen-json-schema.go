@@ -153,23 +153,28 @@ func jsTypeDef(reg rdl.TypeRegistry, t *rdl.Type) map[string]interface{} {
 				}
 				switch fbt {
 				case rdl.BaseTypeArray:
-					prop["type"] = "array"
-					if ft.Variant == rdl.TypeVariantArrayTypeDef && f.Items == "" {
-						f.Items = ft.ArrayTypeDef.Items
-					}
-					if f.Items != "" {
-						fitems := string(f.Items)
-						items := make(map[string]interface{})
-						switch fitems {
-						case "String":
-							items["type"] = strings.ToLower(fitems)
-						case "Int32", "Int64", "Int16":
-							items["type"] = "integer"
-							//not supported by all validators: items["format"] = strings.ToLower(fitems)
-						default:
-							items["$ref"] = "#/definitions/" + fitems
+					if ft.Variant != rdl.TypeVariantBaseType {
+						name, _, _ := rdl.TypeInfo(ft)
+						prop["$ref"] = "#/definitions/" + name
+					} else {
+						prop["type"] = "array"
+						if ft.Variant == rdl.TypeVariantArrayTypeDef && f.Items == "" {
+							f.Items = ft.ArrayTypeDef.Items
 						}
-						prop["items"] = items
+						if f.Items != "" {
+							fitems := string(f.Items)
+							items := make(map[string]interface{})
+							switch fitems {
+							case "String":
+								items["type"] = strings.ToLower(fitems)
+							case "Int32", "Int64", "Int16":
+								items["type"] = "integer"
+								//not supported by all validators: items["format"] = strings.ToLower(fitems)
+							default:
+								items["$ref"] = "#/definitions/" + fitems
+							}
+							prop["items"] = items
+						}
 					}
 				case rdl.BaseTypeString:
 					if ft.Variant != rdl.TypeVariantBaseType {
@@ -202,7 +207,7 @@ func jsTypeDef(reg rdl.TypeRegistry, t *rdl.Type) map[string]interface{} {
 				case rdl.BaseTypeEnum:
 					prop["$ref"] = "#/definitions/" + string(f.Type)
 				default:
-					prop["type"] = "_" + string(f.Type) + "_" //!
+					panic("not yet implemented: " + f.Type)
 				}
 				props[string(f.Name)] = prop
 			}
@@ -229,7 +234,7 @@ func jsTypeDef(reg rdl.TypeRegistry, t *rdl.Type) map[string]interface{} {
 		}
 	case rdl.TypeVariantArrayTypeDef:
 		typedef := t.ArrayTypeDef
-		st["type"] = bt.String()
+		st["type"] = "array"
 		if typedef.Items != "Any" {
 			items := make(map[string]interface{})
 			switch reg.FindBaseType(typedef.Items) {
@@ -242,6 +247,17 @@ func jsTypeDef(reg rdl.TypeRegistry, t *rdl.Type) map[string]interface{} {
 				items["$ref"] = "#/definitions/" + string(typedef.Items)
 			}
 			st["items"] = items
+			if typedef.Size != nil {
+				st["minItems"] = *typedef.Size
+				st["maxItems"] = *typedef.Size
+			} else {
+				if typedef.MinSize != nil {
+					st["minItems"] = *typedef.MinSize
+				}
+				if typedef.MaxSize != nil {
+					st["minItems"] = *typedef.MaxSize
+				}
+			}
 		}
 	case rdl.TypeVariantEnumTypeDef:
 		typedef := t.EnumTypeDef

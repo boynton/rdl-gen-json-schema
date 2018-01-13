@@ -1,4 +1,5 @@
 bin/
+linux_bin/
 pkg/
 src/
 Makefile
